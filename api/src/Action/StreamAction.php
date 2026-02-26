@@ -22,12 +22,23 @@ class StreamAction
     {
         $lastId = (int) ($request->getHeaderLine('Last-Event-ID') ?: $request->getQueryParams()['lastId'] ?? 0);
 
+        @ini_set('zlib.output_compression', '0');
+        @ini_set('output_buffering', '0');
+        @ini_set('implicit_flush', '1');
+        if (function_exists('apache_setenv')) {
+            @apache_setenv('no-gzip', '1');
+        }
+
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('Connection: keep-alive');
         header('X-Accel-Buffering: no');
+        header('Content-Encoding: none');
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Last-Event-ID');
 
-        if (ob_get_level()) {
+        while (ob_get_level()) {
             ob_end_clean();
         }
 

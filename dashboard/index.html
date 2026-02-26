@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TYPO3 with me — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --t3-orange: #FF8700;
+    --t3-orange-light: #FFAA33;
+    --t3-orange-glow: rgba(255, 135, 0, 0.4);
+    --t3-dark: #1A1A2E;
+    --t3-darker: #0F0F1A;
+    --t3-surface: #222240;
+    --t3-text: #E8E8F0;
+    --t3-text-dim: #8888AA;
+    --t3-accent: #4ECDC4;
+    --t3-pulse: #FF4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--t3-darker);
+    color: var(--t3-text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Header */
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    background: linear-gradient(180deg, rgba(15,15,26,0.95) 0%, rgba(15,15,26,0.7) 80%, transparent 100%);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 42px;
+    height: 42px;
+    background: var(--t3-orange);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    box-shadow: 0 0 20px var(--t3-orange-glow);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--t3-orange); }
+
+  .header-stats {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .stat { text-align: center; }
+
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--t3-orange);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--t3-text-dim);
+    margin-top: 4px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 68, 68, 0.15);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--t3-pulse);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .live-badge.connected { color: var(--t3-accent); background: rgba(78,205,196,0.15); border-color: rgba(78,205,196,0.3); }
+  .live-badge.connected .live-dot { background: var(--t3-accent); }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--t3-pulse);
+    border-radius: 50%;
+    animation: livePulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* Map Container */
+  .map-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: var(--t3-darker);
+  }
+
+  .map-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  /* Installation Ping */
+  .ping {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .ping-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--t3-orange);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 12px var(--t3-orange-glow);
+    z-index: 2;
+  }
+
+  .ping-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border: 2px solid var(--t3-orange);
+    border-radius: 50%;
+    animation: pingExpand 2s ease-out forwards;
+    opacity: 0;
+  }
+
+  .ping-ring:nth-child(2) { animation-delay: 0.3s; }
+  .ping-ring:nth-child(3) { animation-delay: 0.6s; }
+
+  @keyframes pingExpand {
+    0% { width: 8px; height: 8px; opacity: 0.8; }
+    100% { width: 80px; height: 80px; opacity: 0; }
+  }
+
+  /* Toast Notification */
+  .toast-container {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .toast {
+    background: var(--t3-surface);
+    border: 1px solid rgba(255, 135, 0, 0.25);
+    border-radius: 14px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: toastIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+               toastOut 0.4s ease-in 4s forwards;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,135,0,0.1);
+    white-space: nowrap;
+    backdrop-filter: blur(20px);
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  }
+
+  .toast-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--t3-orange);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .toast-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--t3-text);
+  }
+
+  .toast-detail {
+    font-size: 12px;
+    color: var(--t3-text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .toast-version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--t3-accent);
+    background: rgba(78, 205, 196, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Activity Feed */
+  .feed {
+    position: fixed;
+    right: 20px;
+    top: 90px;
+    bottom: 100px;
+    width: 320px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%);
+  }
+
+  .feed-item {
+    background: rgba(34, 34, 64, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 135, 0, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: feedSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  @keyframes feedSlide {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .feed-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--t3-orange);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .feed-city {
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .feed-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--t3-text-dim);
+  }
+
+  .feed-ver {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--t3-accent);
+    background: rgba(78, 205, 196, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* Bottom Bar */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 16px 28px;
+    background: linear-gradient(0deg, rgba(15,15,26,0.95) 0%, rgba(15,15,26,0.7) 80%, transparent 100%);
+    backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .version-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 40px;
+  }
+
+  .version-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .version-bar {
+    width: 28px;
+    border-radius: 4px 4px 0 0;
+    background: var(--t3-orange);
+    transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .version-bar.v13 { opacity: 1; }
+  .version-bar.v12 { opacity: 0.6; }
+  .version-bar.v11 { opacity: 0.35; }
+
+  .version-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--t3-text-dim);
+  }
+
+  .region-stats {
+    display: flex;
+    gap: 24px;
+  }
+
+  .region { text-align: center; }
+
+  .region-name {
+    font-size: 11px;
+    color: var(--t3-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .region-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--t3-text);
+  }
+
+  .cta-button {
+    background: var(--t3-orange);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 20px var(--t3-orange-glow);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(255, 135, 0, 0.5);
+  }
+
+  /* Existing installations (persistent dots) */
+  .existing-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--t3-orange);
+    border-radius: 50%;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  /* Grid overlay */
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image:
+      linear-gradient(rgba(255,135,0,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,135,0,0.5) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .feed { display: none; }
+    .header-stats { gap: 16px; }
+    .stat-value { font-size: 18px; }
+    .region-stats { gap: 12px; }
+    .header { padding: 12px 16px; }
+    .bottom-bar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">T3</div>
+    <div class="logo-text"><span>TYPO3</span> with me</div>
+  </div>
+  <div class="header-stats">
+    <div class="stat">
+      <div class="stat-value" id="totalInstalls">0</div>
+      <div class="stat-label">Total installations</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="todayCount">0</div>
+      <div class="stat-label">Today</div>
+    </div>
+    <div class="live-badge connected" id="liveBadge">
+      <div class="live-dot"></div>
+      <span id="liveText">Live</span>
+    </div>
+  </div>
+</header>
+
+<div class="map-container" id="mapContainer">
+  <div class="grid-overlay"></div>
+  <svg class="map-svg" id="worldMap" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <radialGradient id="euroGlow" cx="560" cy="200" r="120" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#FF8700" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#FF8700" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect fill="#0F0F1A" width="1200" height="620"/>
+    <circle cx="560" cy="200" r="120" fill="url(#euroGlow)"/>
+    <!-- Simplified world landmasses -->
+    <path d="M120,120 L180,90 L240,95 L280,110 L310,130 L320,160 L300,200 L280,230 L260,260 L240,270 L200,280 L170,270 L150,250 L130,220 L110,180 L115,150 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M200,280 L220,290 L230,310 L225,330 L210,340 L200,330 L195,310 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M250,340 L280,330 L310,350 L320,390 L310,440 L290,490 L270,520 L250,530 L240,500 L235,460 L240,420 L235,380 L240,350 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M480,130 L510,110 L540,105 L570,110 L600,120 L620,140 L630,170 L610,200 L590,210 L560,220 L530,230 L500,225 L485,210 L475,190 L470,170 L475,150 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
+    <path d="M470,140 L480,130 L485,145 L478,155 L472,150 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
+    <path d="M530,70 L545,60 L555,75 L560,100 L550,110 L535,105 L530,85 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
+    <path d="M490,260 L530,250 L570,260 L590,290 L600,330 L590,380 L570,430 L540,460 L510,450 L490,420 L480,380 L470,340 L475,300 L480,270 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M620,130 L680,100 L750,90 L830,95 L900,105 L950,120 L980,140 L960,170 L920,190 L870,200 L800,210 L730,200 L670,190 L640,170 L630,150 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M620,210 L650,200 L680,210 L690,240 L670,260 L640,260 L620,245 L615,225 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M720,230 L750,220 L770,240 L760,280 L740,310 L720,300 L710,270 L715,245 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M800,170 L850,160 L900,170 L920,200 L900,230 L860,240 L820,235 L800,215 L795,190 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M930,175 L940,165 L945,180 L940,195 L932,190 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M830,270 L860,260 L890,275 L880,310 L860,330 L835,320 L825,295 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <path d="M870,400 L920,380 L970,390 L990,420 L980,460 L950,480 L910,475 L880,450 L870,420 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
+    <g class="connections" opacity="0.06" stroke="#FF8700" fill="none" stroke-width="0.5">
+      <path d="M555,180 Q450,100 250,180"/>
+      <path d="M555,180 Q650,120 870,200"/>
+      <path d="M555,180 Q560,300 530,420"/>
+      <path d="M555,180 Q700,150 930,180"/>
+      <path d="M555,180 Q680,350 920,430"/>
+    </g>
+  </svg>
+  <div id="pingsLayer"></div>
+  <div id="existingDots"></div>
+</div>
+
+<div class="feed" id="activityFeed"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="bottom-bar">
+  <div class="version-chart" id="versionChart"></div>
+
+  <div class="region-stats">
+    <div class="region">
+      <div class="region-count" id="regionEU">0</div>
+      <div class="region-name">Europe</div>
+    </div>
+    <div class="region">
+      <div class="region-count" id="regionNA">0</div>
+      <div class="region-name">Americas</div>
+    </div>
+    <div class="region">
+      <div class="region-count" id="regionAP">0</div>
+      <div class="region-name">Asia-Pacific</div>
+    </div>
+    <div class="region">
+      <div class="region-count" id="regionOT">0</div>
+      <div class="region-name">Other</div>
+    </div>
+  </div>
+
+  <a class="cta-button" href="https://get.typo3.org" target="_blank" rel="noopener">
+    Install TYPO3 Now
+  </a>
+</div>
+
+<script>
+const API = 'https://api.t3-with.me';
+
+// Country code to region mapping
+const EUROPE = new Set(['AL','AD','AT','BY','BE','BA','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT','XK','LV','LI','LT','LU','MT','MD','MC','ME','NL','MK','NO','PL','PT','RO','RU','SM','RS','SK','SI','ES','SE','CH','TR','UA','GB','VA']);
+const AMERICAS = new Set(['US','CA','MX','BR','AR','CL','CO','PE','VE','EC','BO','PY','UY','GY','SR','PA','CR','NI','HN','SV','GT','BZ','CU','JM','HT','DO','TT','BB','BS','PR']);
+const APAC = new Set(['CN','JP','KR','IN','AU','NZ','SG','TH','VN','PH','MY','ID','TW','HK','MO','BD','PK','LK','MM','KH','LA','MN','NP','FJ','PG']);
+
+function countryToRegion(cc) {
+  if (!cc) return 'OT';
+  const c = cc.toUpperCase();
+  if (EUROPE.has(c)) return 'EU';
+  if (AMERICAS.has(c)) return 'NA';
+  if (APAC.has(c)) return 'AP';
+  return 'OT';
+}
+
+// Convert lat/lng to map x/y percentages (calibrated for the SVG)
+function geoToMap(lat, lng) {
+  if (lat == null || lng == null) return null;
+  return {
+    x: Math.max(3, Math.min(97, lng * 0.267 + 45.18)),
+    y: Math.max(5, Math.min(90, lat * -0.558 + 53.1))
+  };
+}
+
+// State
+let totalInstalls = 0;
+let todayCount = 0;
+let regionCounts = { EU: 0, NA: 0, AP: 0, OT: 0 };
+let versionCounts = {};
+let knownEventIds = new Set();
+let initialized = false;
+
+function updateHeaderStats() {
+  document.getElementById('totalInstalls').textContent = totalInstalls.toLocaleString();
+  document.getElementById('todayCount').textContent = todayCount.toLocaleString();
+}
+
+function updateRegionStats() {
+  document.getElementById('regionEU').textContent = regionCounts.EU.toLocaleString();
+  document.getElementById('regionNA').textContent = regionCounts.NA.toLocaleString();
+  document.getElementById('regionAP').textContent = regionCounts.AP.toLocaleString();
+  document.getElementById('regionOT').textContent = regionCounts.OT.toLocaleString();
+}
+
+function updateVersionChart() {
+  const chart = document.getElementById('versionChart');
+  const majors = {};
+  for (const [ver, count] of Object.entries(versionCounts)) {
+    const major = ver.split('.')[0];
+    majors[major] = (majors[major] || 0) + count;
+  }
+  const sorted = Object.keys(majors).sort((a, b) => Number(a) - Number(b));
+  const maxCount = Math.max(...Object.values(majors), 1);
+  chart.innerHTML = '';
+  sorted.forEach(major => {
+    const wrap = document.createElement('div');
+    wrap.className = 'version-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'version-bar';
+    bar.style.height = Math.max(4, (majors[major] / maxCount) * 35) + 'px';
+    const newest = sorted[sorted.length - 1];
+    if (major === newest) bar.style.opacity = '1';
+    else if (major === String(Number(newest) - 1)) bar.style.opacity = '0.6';
+    else bar.style.opacity = '0.35';
+    const label = document.createElement('span');
+    label.className = 'version-label';
+    label.textContent = 'v' + major;
+    wrap.appendChild(bar);
+    wrap.appendChild(label);
+    chart.appendChild(wrap);
+  });
+}
+
+function createPing(pos) {
+  const container = document.getElementById('pingsLayer');
+  const ping = document.createElement('div');
+  ping.className = 'ping';
+  ping.style.left = pos.x + '%';
+  ping.style.top = pos.y + '%';
+  ping.innerHTML = '<div class="ping-ring"></div><div class="ping-ring"></div><div class="ping-ring"></div><div class="ping-dot"></div>';
+  container.appendChild(ping);
+  setTimeout(() => ping.remove(), 3000);
+}
+
+function showToast(ev) {
+  const container = document.getElementById('toastContainer');
+  while (container.children.length >= 2) container.firstChild.remove();
+  const city = ev.city || 'Unknown';
+  const country = ev.country || '';
+  const version = ev.typo3_version || '';
+  const eventType = ev.event_type || 'install';
+  const label = eventType === 'update' ? 'Update' : 'New Installation';
+  const icon = eventType === 'update' ? '\u2B06\uFE0F' : '\uD83D\uDE80';
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<div class="toast-icon">${icon}</div><div class="toast-content"><div class="toast-title">${label} in ${city}</div><div class="toast-detail">${country} \u00B7 just now</div></div><div class="toast-version">v${version}</div>`;
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
+}
+
+function addFeedItem(ev, timeStr) {
+  const feed = document.getElementById('activityFeed');
+  const item = document.createElement('div');
+  item.className = 'feed-item';
+  const city = ev.city || 'Unknown';
+  const country = ev.country || '';
+  const version = ev.typo3_version || '';
+  if (!timeStr) timeStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  item.innerHTML = `<div class="feed-dot"></div><div class="feed-city">${city}${country ? ', ' + country : ''}</div><div class="feed-ver">v${version}</div><div class="feed-time">${timeStr}</div>`;
+  feed.insertBefore(item, feed.firstChild);
+  while (feed.children.length > 30) feed.lastChild.remove();
+}
+
+function placeExistingDot(lat, lng) {
+  const pos = geoToMap(parseFloat(lat), parseFloat(lng));
+  if (!pos) return;
+  const container = document.getElementById('existingDots');
+  const dot = document.createElement('div');
+  dot.className = 'existing-dot';
+  dot.style.left = (pos.x + (Math.random() - 0.5) * 2) + '%';
+  dot.style.top = (pos.y + (Math.random() - 0.5) * 2) + '%';
+  dot.style.opacity = 0.1 + Math.random() * 0.2;
+  container.appendChild(dot);
+}
+
+// Handle a newly detected event (animate ping + toast)
+function handleNewEvent(ev) {
+  const pos = geoToMap(parseFloat(ev.latitude), parseFloat(ev.longitude));
+  if (pos) {
+    createPing(pos);
+    placeExistingDot(ev.latitude, ev.longitude);
+  }
+  showToast(ev);
+  addFeedItem(ev);
+}
+
+// Fetch stats and detect new events via polling
+async function poll() {
+  try {
+    const res = await fetch(API + '/v1/stats');
+    const data = await res.json();
+
+    totalInstalls = data.total_installs || 0;
+    todayCount = data.today || 0;
+    updateHeaderStats();
+
+    versionCounts = data.versions || {};
+    updateVersionChart();
+
+    regionCounts = { EU: 0, NA: 0, AP: 0, OT: 0 };
+    for (const [cc, count] of Object.entries(data.countries || {})) {
+      regionCounts[countryToRegion(cc)] += count;
+    }
+    updateRegionStats();
+
+    const recent = data.recent || [];
+
+    if (!initialized) {
+      // First load: seed feed and dots without animations
+      const reversed = recent.slice().reverse();
+      for (const ev of reversed) {
+        knownEventIds.add(ev.id);
+        const time = new Date(ev.created_at + 'Z');
+        const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        addFeedItem(ev, timeStr);
+        placeExistingDot(ev.latitude, ev.longitude);
+      }
+      initialized = true;
+    } else {
+      // Subsequent polls: detect and animate new events
+      for (const ev of recent) {
+        if (!knownEventIds.has(ev.id)) {
+          knownEventIds.add(ev.id);
+          handleNewEvent(ev);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Poll failed:', e);
+  }
+}
+
+// Initialize and start polling every 10 seconds
+poll();
+setInterval(poll, 10000);
+</script>
+</body>
+</html>
