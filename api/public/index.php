@@ -26,6 +26,9 @@ $containerBuilder->addDefinitions([
         ]);
         return $pdo;
     },
+    PingAction::class => function (PDO $pdo) use ($settings) {
+        return new PingAction($pdo, $settings);
+    },
 ]);
 $container = $containerBuilder->build();
 

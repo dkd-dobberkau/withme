@@ -13,34 +13,36 @@ A live world map that lights up every time someone installs TYPO3. The ecosystem
 | Decision | Choice | Rationale |
 |---|---|---|
 | Goal | Production MVP | Fully working service, not just a demo |
-| Hosting | Mittwald (existing server) | Already available, PHP-native |
-| API Framework | Slim 4 + MySQL | Lightweight, structured, good fit for Mittwald |
-| Live Updates | SSE + Polling Hybrid | No WebSocket server needed, works within Mittwald's PHP timeout limits |
+| Hosting | Docker Compose (portable) | Runs anywhere, reproducible setup |
+| API Framework | Slim 4 + MySQL + Nginx | Lightweight PHP API with Nginx reverse proxy |
+| Live Updates | SSE + Polling Hybrid | No WebSocket server needed, 55s keep-alive with auto-reconnect |
 | GeoIP | MaxMind GeoLite2 (local) | Free, fast, no external API dependency |
 
 ## Architecture
 
 ```
-┌─────────────────────┐         ┌──────────────────────────────┐
-│  Composer Plugin    │  POST   │  Slim PHP API (Mittwald)     │
-│  (typo3/withme)     │────────>│                              │
-│                     │         │  POST /v1/ping               │
-│  Fire & forget      │         │    -> GeoLite2 (IP -> Stadt) │
-│  3s timeout         │         │    -> Discard IP             │
-└─────────────────────┘         │    -> MySQL INSERT           │
-                                │                              │
-┌─────────────────────┐  SSE    │  GET /v1/stream (SSE)        │
-│  Dashboard          │<────────│    -> Stream new events      │
-│  (typo3withme.org)  │         │                              │
-│                     │  GET    │  GET /v1/stats               │
-│  Landing Page       │<────────│    -> Aggregate stats        │
-│  + Live Map         │         │                              │
-└─────────────────────┘         └──────────────────────────────┘
-                                           │
-                                    ┌──────┴──────┐
-                                    │   MySQL     │
-                                    │   events    │
-                                    └─────────────┘
+┌─────────────────────┐         ┌──────────────────────────────────────┐
+│  Composer Plugin    │  POST   │  Docker Compose Stack                │
+│  (typo3/withme)     │────────>│                                      │
+│                     │         │  ┌─────────────────────────────────┐  │
+│  Fire & forget      │         │  │  Nginx (reverse proxy)          │  │
+│  3s timeout         │         │  │  - Landing page (static)        │  │
+└─────────────────────┘         │  │  - Dashboard (static)           │  │
+                                │  │  - /v1/* -> PHP-FPM             │  │
+┌─────────────────────┐         │  └──────────┬──────────────────────┘  │
+│  Dashboard          │  SSE    │             │ fastcgi                 │
+│  (typo3withme.org)  │<───────>│  ┌──────────┴──────────────────────┐  │
+│                     │         │  │  PHP 8.3-FPM (Slim 4 API)       │  │
+│  Landing Page       │  GET    │  │  POST /v1/ping                  │  │
+│  + Live Map         │<───────>│  │  GET /v1/stream (SSE)           │  │
+└─────────────────────┘         │  │  GET /v1/stats                  │  │
+                                │  └──────────┬──────────────────────┘  │
+                                │             │                         │
+                                │  ┌──────────┴──────────────────────┐  │
+                                │  │  MySQL 8.0                      │  │
+                                │  │  events + rate_limits            │  │
+                                │  └─────────────────────────────────┘  │
+                                └──────────────────────────────────────┘
 ```
 
 ## Components
@@ -120,7 +122,7 @@ data: {"city":"Berlin","country":"DE","version":"13.4.2","event":"update","lat":
 
 - Polls MySQL every 2 seconds for new events since last ID
 - Supports `Last-Event-ID` header for reconnection
-- Mittwald PHP timeout (~60s) is handled by browser auto-reconnect (EventSource standard behavior)
+- 55s keep-alive loop, then browser auto-reconnect (EventSource standard behavior)
 
 #### `GET /v1/stats`
 
@@ -217,36 +219,54 @@ Minimal changes:
 | IP privacy | Resolved to city in-memory, immediately discarded |
 | Abuse | project_hash uniqueness check (same hash = same project, deduplicate) |
 
-## Deployment on Mittwald
+## Deployment (Docker Compose)
 
 ```
-html/t3-with-me/
-├── index.html                  # Landing Page
+t3-with-me/
+├── landing/
+│   └── index.html              # Landing page (served by Nginx at /)
 ├── dashboard/
-│   └── index.html              # Live Dashboard
-└── api/
-    ├── public/
-    │   ├── index.php            # API entry point
-    │   └── .htaccess            # Rewrite rules
-    ├── src/
-    ├── vendor/
-    ├── config/
-    └── data/
-        └── GeoLite2-City.mmdb   # MaxMind database
+│   └── dashboard-prototype.html # Live dashboard (served at /dashboard/)
+├── api/
+│   ├── docker-compose.yml      # 3 services: nginx, php, mysql
+│   ├── Dockerfile              # Multi-stage PHP 8.3-FPM build
+│   ├── nginx.conf              # Reverse proxy config
+│   ├── .env                    # Environment variables (from .env.example)
+│   ├── public/
+│   │   └── index.php           # Slim 4 entry point
+│   ├── src/                    # Application code
+│   ├── config/
+│   │   ├── settings.php        # App settings from env
+│   │   └── schema.sql          # Auto-loaded on first MySQL start
+│   ├── vendor/                 # Composer dependencies
+│   └── data/
+│       └── GeoLite2-City.mmdb  # MaxMind database (manual download)
+└── withme/
+    └── src/Plugin.php          # Composer plugin
 ```
 
-MySQL database provisioned via Mittwald dashboard.
+**Start locally:** `cd api && docker compose up --build -d`
+
+**Services:**
+| Service | Container | Port |
+|---|---|---|
+| Nginx | t3withme-nginx | 8081:80 |
+| PHP-FPM | t3withme-php | 9000 (internal) |
+| MySQL 8.0 | t3withme-mysql | 3307:3306 |
+
+MySQL schema is auto-created from `config/schema.sql` on first container start.
 
 ## Implementation Phases
 
-| Phase | Description | Deliverable |
+| Phase | Description | Status |
 |---|---|---|
-| 1 | API setup (Slim 4, MySQL, Ping endpoint) | Pings can be received and stored |
-| 2 | GeoIP integration (MaxMind GeoLite2) | IP resolves to city, IP discarded |
-| 3 | Stats + SSE endpoints | Dashboard can fetch data and stream events |
-| 4 | Dashboard rewire to real API | Live dashboard with real data |
-| 5 | Composer plugin fixes + testing | End-to-end working pipeline |
-| 6 | Deploy to Mittwald | Everything live |
+| 1 | Docker Compose stack (Nginx + PHP-FPM + MySQL) | Done |
+| 2 | Slim 4 API (Ping, Stats, Stream endpoints) | Done |
+| 3 | GeoIP integration (MaxMind GeoLite2) | Done (needs .mmdb file) |
+| 4 | Composer plugin fixes | Done |
+| 5 | Local integration testing | Done |
+| 6 | Dashboard rewire to real API | Pending |
+| 7 | Production deployment | Pending |
 
 ## Out of Scope (for MVP)
 
