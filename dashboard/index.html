@@ -635,7 +635,7 @@ function showToast(ev) {
   while (container.children.length >= 2) container.firstChild.remove();
   const city = ev.city || 'Unknown';
   const country = ev.country || '';
-  const version = ev.typo3_version || '';
+  const version = (ev.typo3_version || '').split('.').slice(0, 2).join('.');
   const eventType = ev.event_type || 'install';
   const label = eventType === 'update' ? 'Update' : 'New Installation';
   const icon = eventType === 'update' ? '\u2B06\uFE0F' : '\uD83D\uDE80';
@@ -652,7 +652,7 @@ function addFeedItem(ev, timeStr) {
   item.className = 'feed-item';
   const city = ev.city || 'Unknown';
   const country = ev.country || '';
-  const version = ev.typo3_version || '';
+  const version = (ev.typo3_version || '').split('.').slice(0, 2).join('.');
   if (!timeStr) timeStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   item.innerHTML = `<div class="feed-dot"></div><div class="feed-city">${city}${country ? ', ' + country : ''}</div><div class="feed-ver">v${version}</div><div class="feed-time">${timeStr}</div>`;
   feed.insertBefore(item, feed.firstChild);
