@@ -29,7 +29,7 @@ use Composer\Script\ScriptEvents;
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
-    private const ENDPOINT = 'https://api.typo3withme.org/v1/ping';
+    private const DEFAULT_ENDPOINT = 'https://api.typo3withme.org/v1/ping';
     private const TIMEOUT_SECONDS = 3;
     private const USER_AGENT = 'TYPO3-WithMe-Composer/1.0';
 
@@ -181,7 +181,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             'php_version'   => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
             'event'         => $this->mapEventName($eventName),
             'project_hash'  => substr($projectHash, 0, 16), // Only first 16 chars
-            'composer'      => Composer::getVersion(),
             'os'            => PHP_OS_FAMILY,
             'timestamp'     => time(),
         ];
@@ -245,6 +244,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         ]);
 
         // Fire and forget – we don't care about the response
-        @file_get_contents(self::ENDPOINT, false, $context);
+        @file_get_contents($this->getEndpoint(), false, $context);
+    }
+
+    private function getEndpoint(): string
+    {
+        $extra = $this->composer->getPackage()->getExtra();
+        return $extra['typo3/withme']['endpoint'] ?? self::DEFAULT_ENDPOINT;
     }
 }
