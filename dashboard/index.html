@@ -139,7 +139,7 @@
     background: var(--t3-darker);
   }
 
-  .map-svg {
+  #mapCanvas {
     width: 100%;
     height: 100%;
     position: absolute;
@@ -430,18 +430,6 @@
     pointer-events: none;
   }
 
-  /* Grid overlay */
-  .grid-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.03;
-    background-image:
-      linear-gradient(rgba(255,135,0,0.5) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,135,0,0.5) 1px, transparent 1px);
-    background-size: 80px 80px;
-  }
-
   /* Responsive */
   @media (max-width: 768px) {
     .feed { display: none; }
@@ -477,39 +465,7 @@
 </header>
 
 <div class="map-container" id="mapContainer">
-  <div class="grid-overlay"></div>
-  <svg class="map-svg" id="worldMap" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet">
-    <defs>
-      <radialGradient id="euroGlow" cx="560" cy="200" r="120" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#FF8700" stop-opacity="0.12"/>
-        <stop offset="100%" stop-color="#FF8700" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <rect fill="#0F0F1A" width="1200" height="620"/>
-    <circle cx="560" cy="200" r="120" fill="url(#euroGlow)"/>
-    <!-- Simplified world landmasses -->
-    <path d="M120,120 L180,90 L240,95 L280,110 L310,130 L320,160 L300,200 L280,230 L260,260 L240,270 L200,280 L170,270 L150,250 L130,220 L110,180 L115,150 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M200,280 L220,290 L230,310 L225,330 L210,340 L200,330 L195,310 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M250,340 L280,330 L310,350 L320,390 L310,440 L290,490 L270,520 L250,530 L240,500 L235,460 L240,420 L235,380 L240,350 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M480,130 L510,110 L540,105 L570,110 L600,120 L620,140 L630,170 L610,200 L590,210 L560,220 L530,230 L500,225 L485,210 L475,190 L470,170 L475,150 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
-    <path d="M470,140 L480,130 L485,145 L478,155 L472,150 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
-    <path d="M530,70 L545,60 L555,75 L560,100 L550,110 L535,105 L530,85 Z" fill="#222244" stroke="#3A3A60" stroke-width="0.5"/>
-    <path d="M490,260 L530,250 L570,260 L590,290 L600,330 L590,380 L570,430 L540,460 L510,450 L490,420 L480,380 L470,340 L475,300 L480,270 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M620,130 L680,100 L750,90 L830,95 L900,105 L950,120 L980,140 L960,170 L920,190 L870,200 L800,210 L730,200 L670,190 L640,170 L630,150 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M620,210 L650,200 L680,210 L690,240 L670,260 L640,260 L620,245 L615,225 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M720,230 L750,220 L770,240 L760,280 L740,310 L720,300 L710,270 L715,245 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M800,170 L850,160 L900,170 L920,200 L900,230 L860,240 L820,235 L800,215 L795,190 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M930,175 L940,165 L945,180 L940,195 L932,190 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M830,270 L860,260 L890,275 L880,310 L860,330 L835,320 L825,295 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <path d="M870,400 L920,380 L970,390 L990,420 L980,460 L950,480 L910,475 L880,450 L870,420 Z" fill="#1E1E38" stroke="#2A2A50" stroke-width="0.5"/>
-    <g class="connections" opacity="0.06" stroke="#FF8700" fill="none" stroke-width="0.5">
-      <path d="M555,180 Q450,100 250,180"/>
-      <path d="M555,180 Q650,120 870,200"/>
-      <path d="M555,180 Q560,300 530,420"/>
-      <path d="M555,180 Q700,150 930,180"/>
-      <path d="M555,180 Q680,350 920,430"/>
-    </g>
-  </svg>
+  <canvas id="mapCanvas"></canvas>
   <div id="pingsLayer"></div>
   <div id="existingDots"></div>
 </div>
@@ -547,6 +503,206 @@
 <script>
 const API = 'https://api.t3-with.me';
 
+// --- Dot-Matrix World Map ---
+
+// Map projection padding (percentage of viewport)
+const MAP_PAD = { left: 0.03, right: 0.03, top: 0.10, bottom: 0.08 };
+
+// Decode TopoJSON topology into arrays of polygon rings (each ring = array of [lng, lat])
+function decodeTopology(topo) {
+  const tf = topo.transform;
+  const decodedArcs = topo.arcs.map(arc => {
+    let x = 0, y = 0;
+    return arc.map(([dx, dy]) => {
+      x += dx; y += dy;
+      return [x * tf.scale[0] + tf.translate[0], y * tf.scale[1] + tf.translate[1]];
+    });
+  });
+
+  function getArc(idx) {
+    return idx >= 0 ? decodedArcs[idx] : decodedArcs[~idx].slice().reverse();
+  }
+
+  function decodeRing(arcIndices) {
+    let coords = [];
+    for (const idx of arcIndices) {
+      const arc = getArc(idx);
+      coords.push(...(coords.length ? arc.slice(1) : arc));
+    }
+    return coords;
+  }
+
+  const polygons = [];
+  for (const geom of topo.objects.land.geometries) {
+    if (geom.type === 'Polygon') {
+      polygons.push(geom.arcs.map(decodeRing));
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.arcs) {
+        polygons.push(poly.map(decodeRing));
+      }
+    }
+  }
+  return polygons;
+}
+
+// Convert geo coordinates to canvas pixel coordinates
+function geoToCanvas(lat, lng, w, h) {
+  const x = MAP_PAD.left * w + ((lng + 180) / 360) * w * (1 - MAP_PAD.left - MAP_PAD.right);
+  const y = MAP_PAD.top * h + ((90 - lat) / 180) * h * (1 - MAP_PAD.top - MAP_PAD.bottom);
+  return { x, y };
+}
+
+// Convert lat/lng to map x/y percentages (for ping overlay positioning)
+function geoToMap(lat, lng) {
+  if (lat == null || lng == null) return null;
+  const padL = MAP_PAD.left * 100, padR = MAP_PAD.right * 100;
+  const padT = MAP_PAD.top * 100, padB = MAP_PAD.bottom * 100;
+  return {
+    x: Math.max(1, Math.min(99, padL + (lng + 180) / 360 * (100 - padL - padR))),
+    y: Math.max(1, Math.min(99, padT + (90 - lat) / 180 * (100 - padT - padB)))
+  };
+}
+
+// Build the dot-matrix from land polygons
+function buildDotMatrix(polygons, w, h, spacing) {
+  // Draw filled land polygons on an offscreen canvas
+  const off = document.createElement('canvas');
+  off.width = w;
+  off.height = h;
+  const offCtx = off.getContext('2d');
+  offCtx.fillStyle = '#fff';
+
+  for (const poly of polygons) {
+    offCtx.beginPath();
+    for (const ring of poly) {
+      for (let i = 0; i < ring.length; i++) {
+        const [lng, lat] = ring[i];
+        const { x, y } = geoToCanvas(lat, lng, w, h);
+        // Skip antimeridian-crossing edges (longitude jump > 90°)
+        if (i === 0 || Math.abs(lng - ring[i - 1][0]) > 90) {
+          offCtx.moveTo(x, y);
+        } else {
+          offCtx.lineTo(x, y);
+        }
+      }
+      offCtx.closePath();
+    }
+    offCtx.fill('evenodd');
+  }
+
+  // Sample grid points that fall on land
+  const imageData = offCtx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const dots = [];
+
+  for (let gy = spacing / 2; gy < h; gy += spacing) {
+    for (let gx = spacing / 2; gx < w; gx += spacing) {
+      const px = Math.round(gx);
+      const py = Math.round(gy);
+      if (px >= w || py >= h) continue;
+      const idx = (py * w + px) * 4;
+      if (data[idx] > 128) {
+        dots.push({
+          x: gx,
+          y: gy,
+          phase: Math.random() * Math.PI * 2,
+          baseOpacity: 0.35 + Math.random() * 0.2
+        });
+      }
+    }
+  }
+
+  return dots;
+}
+
+const EUROPE_CENTER = { lat: 50, lng: 10 };
+
+// Initialize the dot-matrix map
+let mapDots = [];
+let mapPolygons = null;
+let mapAnimId = null;
+
+async function initDotMatrix() {
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  try {
+    const res = await fetch('land-110m.json');
+    const topo = await res.json();
+    mapPolygons = decodeTopology(topo);
+  } catch (e) {
+    console.error('Failed to load map data:', e);
+    return;
+  }
+
+  function rebuild() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const spacing = Math.max(3, Math.min(5, Math.round(w / 450)));
+    mapDots = buildDotMatrix(mapPolygons, w, h, spacing);
+  }
+
+  rebuild();
+
+  // Shimmer animation loop
+  let lastFrame = 0;
+  function animate(time) {
+    mapAnimId = requestAnimationFrame(animate);
+
+    // Cap at ~18fps for efficiency
+    if (time - lastFrame < 55) return;
+    lastFrame = time;
+
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Europe glow
+    const euroPos = geoToCanvas(EUROPE_CENTER.lat, EUROPE_CENTER.lng, w, h);
+    const glowRadius = w * 0.18;
+    const grad = ctx.createRadialGradient(euroPos.x, euroPos.y, 0, euroPos.x, euroPos.y, glowRadius);
+    grad.addColorStop(0, 'rgba(255, 135, 0, 0.07)');
+    grad.addColorStop(1, 'rgba(255, 135, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw dot matrix with shimmer
+    const t = time * 0.001;
+    const dotRadius = Math.max(1, w / 1400);
+
+    for (let i = 0; i < mapDots.length; i++) {
+      const dot = mapDots[i];
+      const shimmer = dot.baseOpacity + 0.08 * Math.sin(t * 0.7 + dot.phase);
+      ctx.fillStyle = `rgba(58, 58, 96, ${shimmer})`;
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dotRadius, 0, 6.283);
+      ctx.fill();
+    }
+  }
+
+  requestAnimationFrame(animate);
+
+  // Debounced resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(rebuild, 200);
+  });
+}
+
+// Start the map
+initDotMatrix();
+
+// --- Dashboard Logic (unchanged) ---
+
 // Country code to region mapping
 const EUROPE = new Set(['AL','AD','AT','BY','BE','BA','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT','XK','LV','LI','LT','LU','MT','MD','MC','ME','NL','MK','NO','PL','PT','RO','RU','SM','RS','SK','SI','ES','SE','CH','TR','UA','GB','VA']);
 const AMERICAS = new Set(['US','CA','MX','BR','AR','CL','CO','PE','VE','EC','BO','PY','UY','GY','SR','PA','CR','NI','HN','SV','GT','BZ','CU','JM','HT','DO','TT','BB','BS','PR']);
@@ -559,15 +715,6 @@ function countryToRegion(cc) {
   if (AMERICAS.has(c)) return 'NA';
   if (APAC.has(c)) return 'AP';
   return 'OT';
-}
-
-// Convert lat/lng to map x/y percentages (calibrated for the SVG)
-function geoToMap(lat, lng) {
-  if (lat == null || lng == null) return null;
-  return {
-    x: Math.max(3, Math.min(97, lng * 0.267 + 45.18)),
-    y: Math.max(5, Math.min(90, lat * -0.558 + 53.1))
-  };
 }
 
 // State
