@@ -1,0 +1,59 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: t3withme-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./public:/var/www/html/public
+      - ../landing:/var/www/html/landing
+      - ../dashboard:/var/www/html/dashboard
+    depends_on:
+      - php
+    networks:
+      - t3withme
+    restart: unless-stopped
+
+  php:
+    build: .
+    container_name: t3withme-php
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - t3withme
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: t3withme-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-t3withme}
+      MYSQL_USER: ${MYSQL_USER:-t3withme}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-t3withme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./config/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "3307:3306"
+    networks:
+      - t3withme
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+
+networks:
+  t3withme:
+    driver: bridge
