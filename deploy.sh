@@ -14,6 +14,7 @@ echo "  -> https://www.t3-with.me/"
 # Dashboard
 echo "Deploying dashboard..."
 scp "$LOCAL_ROOT/dashboard/index.html" "$SSH_HOST:html/dashboard/index.html"
+scp "$LOCAL_ROOT/dashboard/land-110m.json" "$SSH_HOST:html/dashboard/land-110m.json"
 echo "  -> https://dashboard.t3-with.me/"
 
 # API
