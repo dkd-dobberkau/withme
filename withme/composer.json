@@ -1,0 +1,33 @@
+{
+    "name": "typo3/withme",
+    "description": "TYPO3 with me – Opt-in telemetry that pings a live world map whenever TYPO3 is installed or updated via Composer.",
+    "type": "composer-plugin",
+    "license": "GPL-2.0-or-later",
+    "keywords": ["typo3", "telemetry", "community", "map"],
+    "homepage": "https://typo3withme.org",
+    "authors": [
+        {
+            "name": "TYPO3 Association",
+            "email": "info@typo3.org",
+            "homepage": "https://typo3.org"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "composer-plugin-api": "^2.0"
+    },
+    "require-dev": {
+        "composer/composer": "^2.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "TYPO3\\WithMe\\": "src/"
+        }
+    },
+    "extra": {
+        "class": "TYPO3\\WithMe\\Plugin"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
