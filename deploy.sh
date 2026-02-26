@@ -77,6 +77,20 @@ PHPEOF
 
 scp /tmp/t3withme-index-prod.php "$SSH_HOST:html/api/index.php"
 scp "$LOCAL_ROOT/api/public/.htaccess" "$SSH_HOST:html/api/.htaccess"
+# Redirect api root to landing page
+cat << 'HTMLEOF' | ssh "$SSH_HOST" "cat > ~/html/api/index.html"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="0;url=https://www.t3-with.me/">
+<title>Redirecting…</title>
+</head>
+<body>
+<p>Redirecting to <a href="https://www.t3-with.me/">t3-with.me</a>…</p>
+</body>
+</html>
+HTMLEOF
 scp -r "$LOCAL_ROOT/api/src/Action" "$LOCAL_ROOT/api/src/Service" "$LOCAL_ROOT/api/src/Middleware" "$SSH_HOST:app/src/"
 scp "$LOCAL_ROOT/api/config/settings.php" "$SSH_HOST:app/config/"
 rm /tmp/t3withme-index-prod.php
