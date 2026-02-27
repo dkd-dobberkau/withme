@@ -422,12 +422,13 @@
   /* Existing installations (persistent dots) */
   .existing-dot {
     position: absolute;
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     background: var(--t3-orange);
     border-radius: 50%;
-    opacity: 0.25;
+    opacity: 0.35;
     pointer-events: none;
+    box-shadow: 0 0 4px var(--t3-orange-glow);
   }
 
   /* Responsive */
@@ -681,7 +682,7 @@ async function initDotMatrix() {
     for (let i = 0; i < mapDots.length; i++) {
       const dot = mapDots[i];
       const shimmer = dot.baseOpacity + 0.08 * Math.sin(t * 0.7 + dot.phase);
-      ctx.fillStyle = `rgba(58, 58, 96, ${shimmer})`;
+      ctx.fillStyle = `rgba(90, 90, 140, ${shimmer})`;
       ctx.beginPath();
       ctx.arc(dot.x, dot.y, dotRadius, 0, 6.283);
       ctx.fill();
@@ -814,7 +815,7 @@ function placeExistingDot(lat, lng) {
   dot.className = 'existing-dot';
   dot.style.left = (pos.x + (Math.random() - 0.5) * 2) + '%';
   dot.style.top = (pos.y + (Math.random() - 0.5) * 2) + '%';
-  dot.style.opacity = 0.1 + Math.random() * 0.2;
+  dot.style.opacity = 0.25 + Math.random() * 0.25;
   container.appendChild(dot);
 }
 
